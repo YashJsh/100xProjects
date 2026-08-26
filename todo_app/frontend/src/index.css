@@ -1,0 +1,23 @@
+@import "../styles/globals.css";
+
+@layer base {
+  :root {
+    @apply font-sans;
+  }
+
+  body {
+    @apply min-w-[320px] min-h-screen m-0 bg-background text-foreground;
+    display: flex;
+    justify-content: center;
+    align-items: flex-start;
+    padding: 4rem 1rem;
+    background-image:
+      radial-gradient(ellipse at 50% 0%, oklch(0.95 0.01 250) 0%, transparent 60%);
+  }
+
+  #root {
+    width: 100%;
+    display: flex;
+    justify-content: center;
+  }
+}
