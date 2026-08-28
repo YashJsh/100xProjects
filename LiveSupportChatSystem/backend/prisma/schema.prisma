@@ -1,0 +1,49 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+}
+
+model User {
+  id           String   @id @default(uuid())
+  email        String   @unique
+  name         String
+  password     String
+  role         Role
+  supervisorID String?
+  createdAt    DateTime @default(now())
+}
+
+model Message {
+  id             String       @id @default(uuid())
+  conversationID String
+  senderID       String
+  role           Role
+  content        String
+  createdAt      DateTime     @default(now())
+  conversation   Conversation @relation(fields: [conversationID], references: [id])
+}
+
+model Conversation {
+  id          String    @id @default(uuid())
+  candidateID String
+  agentID     String?
+  status      Status    @default(OPEN)
+  createdAt   DateTime  @default(now())
+  messages    Message[]
+}
+
+enum Status {
+  OPEN
+  CLOSED
+  IN_PROGRESS
+}
+
+enum Role {
+  CANDIDATE
+  SUPERVISOR
+  AGENT
+  ADMIN
+}

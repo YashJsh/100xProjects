@@ -44,5 +44,7 @@
     "skipLibCheck": true,
     "moduleResolution": "bundler",
     "resolveJsonModule": true,
-  }
+  },
+  "include": ["src/**/*.ts"],
+  "exclude": ["node_modules"]
 }
