@@ -1,4 +1,4 @@
-import ws, { WebSocketServer } from "ws";
+import { WebSocketServer } from "ws";
 import { Socket } from "net";
 import { IncomingMessage, Server } from "http"
 import { verifyToken } from "../utils/token";
