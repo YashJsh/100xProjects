@@ -15,7 +15,28 @@ export interface AgentItem {
   id: string;
   name: string;
   email: string;
-  createdAt: string;
+  createdAt?: string;
+  conversationsHandled?: number;
+}
+
+export interface SupervisorMetrics {
+  id: string;
+  name: string;
+  email: string;
+  agentsCount: number;
+  totalConversationsHandled: number;
+  agents: AgentItem[];
+}
+
+export interface AdminAnalyticsData {
+  metrics: {
+    totalSupervisors: number;
+    totalAgents: number;
+    totalConversations: number;
+    activeConversations: number;
+    closedConversations: number;
+  };
+  supervisors: SupervisorMetrics[];
 }
 
 export interface ConversationItem {
@@ -40,6 +61,7 @@ export interface ConversationItem {
 interface ConversationState {
   conversations: ConversationItem[];
   supervisorAgents: AgentItem[];
+  adminAnalytics: AdminAnalyticsData | null;
   activeConversation: ConversationItem | null;
   messages: MessageItem[];
   isLoading: boolean;
@@ -59,6 +81,9 @@ interface ConversationState {
   fetchSupervisorAgents: () => Promise<AgentItem[]>;
   assignAgentToConversation: (conversationId: string, agentId: string) => Promise<void>;
 
+  // Admin REST Actions
+  fetchAdminAnalytics: () => Promise<AdminAnalyticsData>;
+
   // WebSocket Actions
   connectWebSocket: (conversationId?: string) => void;
   disconnectWebSocket: () => void;
@@ -75,6 +100,7 @@ interface ConversationState {
 export const useConversationStore = create<ConversationState>((set, get) => ({
   conversations: [],
   supervisorAgents: [],
+  adminAnalytics: null,
   activeConversation: null,
   messages: [],
   isLoading: false,
@@ -108,13 +134,25 @@ export const useConversationStore = create<ConversationState>((set, get) => ({
     }
   },
 
-  // 3. Assign Agent to Conversation via Supervisor API
+  // 3. Fetch Admin Analytics
+  fetchAdminAnalytics: async () => {
+    set({ isLoading: true, error: null });
+    try {
+      const { data } = await api.get("/admin/analytics");
+      set({ adminAnalytics: data, isLoading: false });
+      return data;
+    } catch (err: any) {
+      set({ error: err.message || "Error fetching admin analytics", isLoading: false });
+      throw err;
+    }
+  },
+
+  // 4. Assign Agent to Conversation via Supervisor API
   assignAgentToConversation: async (conversationId: string, agentId: string) => {
     set({ isLoading: true, error: null });
     try {
       const { data } = await api.post(`/conversations/${conversationId}/assign`, { agentId });
       
-      // Update local state
       set((state) => ({
         conversations: state.conversations.map((c) =>
           c.id === conversationId
@@ -129,7 +167,7 @@ export const useConversationStore = create<ConversationState>((set, get) => ({
     }
   },
 
-  // 4. Create New Conversation
+  // 5. Create New Conversation
   createConversation: async () => {
     set({ isLoading: true, error: null });
     try {
@@ -148,7 +186,7 @@ export const useConversationStore = create<ConversationState>((set, get) => ({
     }
   },
 
-  // 5. Fetch Single Conversation Details
+  // 6. Fetch Single Conversation Details
   fetchConversationById: async (id: string) => {
     set({ isLoading: true, error: null });
     try {
@@ -177,7 +215,7 @@ export const useConversationStore = create<ConversationState>((set, get) => ({
     }
   },
 
-  // 6. Close Conversation
+  // 7. Close Conversation
   closeConversation: async (id: string) => {
     set({ isLoading: true, error: null });
     try {
@@ -190,7 +228,7 @@ export const useConversationStore = create<ConversationState>((set, get) => ({
     }
   },
 
-  // 7. Manage WebSocket Connection
+  // 8. Manage WebSocket Connection
   connectWebSocket: (conversationId?: string) => {
     const token = useAuthStore.getState().token;
     if (!token) return;
