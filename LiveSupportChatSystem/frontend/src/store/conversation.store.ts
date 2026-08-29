@@ -1,5 +1,5 @@
 import { create } from "zustand";
-import { api } from "@/lib/api";
+import { api } from "../lib/api";
 import { useAuthStore } from "./auth.store";
 
 export interface MessageItem {
@@ -16,6 +16,8 @@ export interface AgentItem {
   name: string;
   email: string;
   createdAt?: string;
+  supervisorID?: string | null;
+  supervisorName?: string;
   conversationsHandled?: number;
 }
 
@@ -37,6 +39,7 @@ export interface AdminAnalyticsData {
     closedConversations: number;
   };
   supervisors: SupervisorMetrics[];
+  allAgents: AgentItem[];
 }
 
 export interface ConversationItem {
@@ -83,6 +86,7 @@ interface ConversationState {
 
   // Admin REST Actions
   fetchAdminAnalytics: () => Promise<AdminAnalyticsData>;
+  assignAgentToSupervisor: (agentId: string, supervisorId: string) => Promise<void>;
 
   // WebSocket Actions
   connectWebSocket: (conversationId?: string) => void;
@@ -147,7 +151,19 @@ export const useConversationStore = create<ConversationState>((set, get) => ({
     }
   },
 
-  // 4. Assign Agent to Conversation via Supervisor API
+  // 4. Admin Assign Agent to Supervisor
+  assignAgentToSupervisor: async (agentId: string, supervisorId: string) => {
+    set({ isLoading: true, error: null });
+    try {
+      await api.post("/admin/assign-agent", { agentId, supervisorId });
+      await get().fetchAdminAnalytics();
+    } catch (err: any) {
+      set({ error: err.message || "Error assigning agent to supervisor", isLoading: false });
+      throw err;
+    }
+  },
+
+  // 5. Supervisor Assign Agent to Conversation
   assignAgentToConversation: async (conversationId: string, agentId: string) => {
     set({ isLoading: true, error: null });
     try {
@@ -167,7 +183,7 @@ export const useConversationStore = create<ConversationState>((set, get) => ({
     }
   },
 
-  // 5. Create New Conversation
+  // 6. Create New Conversation
   createConversation: async () => {
     set({ isLoading: true, error: null });
     try {
@@ -186,7 +202,7 @@ export const useConversationStore = create<ConversationState>((set, get) => ({
     }
   },
 
-  // 6. Fetch Single Conversation Details
+  // 7. Fetch Single Conversation Details
   fetchConversationById: async (id: string) => {
     set({ isLoading: true, error: null });
     try {
@@ -215,7 +231,7 @@ export const useConversationStore = create<ConversationState>((set, get) => ({
     }
   },
 
-  // 7. Close Conversation
+  // 8. Close Conversation
   closeConversation: async (id: string) => {
     set({ isLoading: true, error: null });
     try {
@@ -228,7 +244,7 @@ export const useConversationStore = create<ConversationState>((set, get) => ({
     }
   },
 
-  // 8. Manage WebSocket Connection
+  // 9. Manage WebSocket Connection
   connectWebSocket: (conversationId?: string) => {
     const token = useAuthStore.getState().token;
     if (!token) return;

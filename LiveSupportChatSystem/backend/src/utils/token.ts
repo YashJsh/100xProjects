@@ -1,17 +1,19 @@
-import * as jwt from "jsonwebtoken";
+import jwt from "jsonwebtoken";
 import type { AuthPayload } from "../types/auth.types";
 
+const getJwtSecret = (): string => {
+    return process.env.JWT_SECRET || "super-secret-jwt-key-live-support";
+};
+
 export const generateToken = (payload: AuthPayload): string => {
-    if (!process.env.JWT_SECRET){
-        throw new Error("JWT Secret is not defined")
-    }
-    const token = jwt.sign(payload, process.env.JWT_SECRET!, { expiresIn: "1h" });
+    const secret = getJwtSecret();
+    const token = jwt.sign(payload, secret, { expiresIn: "7d" });
     return token;
 };
 
 export const verifyToken = (token: string) => {
     try {
-        const decoded_token = jwt.verify(token, process.env.JWT_SECRET!);
+        const decoded_token = jwt.verify(token, getJwtSecret());
         return decoded_token;
     } catch (error) {
         return null;

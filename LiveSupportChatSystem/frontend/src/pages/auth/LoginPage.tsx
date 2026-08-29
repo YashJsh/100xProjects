@@ -11,7 +11,10 @@ const DEMO_CREDENTIALS: Record<Role, { email: string; pass: string }> = {
 
 export function LoginPage() {
   const navigate = useNavigate();
-  const { signin, isLoading, error, clearError } = useAuthStore();
+  const signin = useAuthStore((s) => s.signin);
+  const isLoading = useAuthStore((s) => s.isLoading);
+  const error = useAuthStore((s) => s.error);
+  const clearError = useAuthStore((s) => s.clearError);
 
   const [selectedRole, setSelectedRole] = useState<Role>("CANDIDATE");
   const [email, setEmail] = useState(DEMO_CREDENTIALS.CANDIDATE.email);
@@ -42,7 +45,7 @@ export function LoginPage() {
         navigate("/candidate/dashboard");
       }
     } catch (err) {
-      // Error handled by store
+      // Error handled in store and displayed via error selector
     }
   };
 
@@ -83,7 +86,7 @@ export function LoginPage() {
         </div>
 
         {error && (
-          <div className="p-3 text-xs bg-neutral-100 border border-neutral-300 text-neutral-800 rounded-md">
+          <div className="p-3 text-xs bg-neutral-100 border border-neutral-300 text-neutral-800 rounded-md font-medium">
             {error}
           </div>
         )}

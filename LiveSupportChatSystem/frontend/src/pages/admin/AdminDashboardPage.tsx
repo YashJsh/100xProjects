@@ -6,9 +6,20 @@ import { useConversationStore } from "@/store/conversation.store";
 export function AdminDashboardPage() {
   const navigate = useNavigate();
   const { user, logout } = useAuthStore();
-  const { adminAnalytics, fetchAdminAnalytics, isLoading, error } = useConversationStore();
+  const {
+    adminAnalytics,
+    fetchAdminAnalytics,
+    assignAgentToSupervisor,
+    isLoading,
+    error,
+  } = useConversationStore();
 
+  const [activeTab, setActiveTab] = useState<"overview" | "assignment">("overview");
   const [expandedSup, setExpandedSup] = useState<string | null>(null);
+
+  // Assignment tab state
+  const [selectedSupMap, setSelectedSupMap] = useState<Record<string, string>>({});
+  const [assigningAgentId, setAssigningAgentId] = useState<string | null>(null);
 
   useEffect(() => {
     fetchAdminAnalytics().then((data) => {
@@ -17,6 +28,20 @@ export function AdminDashboardPage() {
       }
     });
   }, [fetchAdminAnalytics]);
+
+  const handleAssignSupervisor = async (agentId: string) => {
+    const supervisorId = selectedSupMap[agentId];
+    if (!supervisorId) return;
+
+    setAssigningAgentId(agentId);
+    try {
+      await assignAgentToSupervisor(agentId, supervisorId);
+    } catch (err) {
+      // Error handled by store
+    } finally {
+      setAssigningAgentId(null);
+    }
+  };
 
   const metrics = adminAnalytics?.metrics || {
     totalSupervisors: 0,
@@ -27,10 +52,12 @@ export function AdminDashboardPage() {
   };
 
   const supervisors = adminAnalytics?.supervisors || [];
+  const allAgents = adminAnalytics?.allAgents || [];
+  const unassignedAgents = allAgents.filter((a) => !a.supervisorID);
 
   return (
     <div className="min-h-screen bg-white text-neutral-900 font-sans flex flex-col">
-      {/* Simple Header */}
+      {/* Header */}
       <header className="border-b border-neutral-200 px-6 py-3.5 flex items-center justify-between">
         <div className="flex items-center space-x-3">
           <span className="w-2.5 h-2.5 rounded-full bg-neutral-900" />
@@ -57,11 +84,42 @@ export function AdminDashboardPage() {
 
       {/* Main Container */}
       <main className="max-w-4xl mx-auto w-full px-6 py-8 flex-1 space-y-6">
-        <div className="pb-4 border-b border-neutral-200">
-          <h1 className="text-lg font-bold text-neutral-900">System Analytics & Hierarchy</h1>
-          <p className="text-xs text-neutral-500">
-            Global metrics, registered supervisors, agents, and conversation performance
-          </p>
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-neutral-200">
+          <div>
+            <h1 className="text-lg font-bold text-neutral-900">Admin Management Portal</h1>
+            <p className="text-xs text-neutral-500">
+              Manage system metrics, supervisor team hierarchies, and agent assignments
+            </p>
+          </div>
+
+          {/* Two-Tab Navigation */}
+          <div className="flex p-1 bg-neutral-100 border border-neutral-200 rounded-md">
+            <button
+              onClick={() => setActiveTab("overview")}
+              className={`px-3 py-1 text-xs font-semibold rounded transition-all ${
+                activeTab === "overview"
+                  ? "bg-white text-neutral-900 shadow-xs border border-neutral-200"
+                  : "text-neutral-500 hover:text-neutral-900"
+              }`}
+            >
+              System Overview
+            </button>
+            <button
+              onClick={() => setActiveTab("assignment")}
+              className={`px-3 py-1 text-xs font-semibold rounded transition-all flex items-center gap-1.5 ${
+                activeTab === "assignment"
+                  ? "bg-white text-neutral-900 shadow-xs border border-neutral-200"
+                  : "text-neutral-500 hover:text-neutral-900"
+              }`}
+            >
+              <span>Agent Assignment</span>
+              {unassignedAgents.length > 0 && (
+                <span className="px-1.5 py-0.2 rounded-full text-[10px] bg-neutral-900 text-white">
+                  {unassignedAgents.length}
+                </span>
+              )}
+            </button>
+          </div>
         </div>
 
         {error && (
@@ -70,111 +128,221 @@ export function AdminDashboardPage() {
           </div>
         )}
 
-        {/* Top System Metrics Bar */}
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-          <div className="p-3.5 border border-neutral-200 rounded-md bg-white space-y-1">
-            <p className="text-[10px] font-semibold uppercase tracking-wider text-neutral-500">
-              Supervisors
-            </p>
-            <p className="text-xl font-bold text-neutral-900">{metrics.totalSupervisors}</p>
-          </div>
+        {/* TAB 1: SYSTEM OVERVIEW */}
+        {activeTab === "overview" && (
+          <div className="space-y-6">
+            {/* System Metrics Bar */}
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+              <div className="p-3.5 border border-neutral-200 rounded-md bg-white space-y-1">
+                <p className="text-[10px] font-semibold uppercase tracking-wider text-neutral-500">
+                  Supervisors
+                </p>
+                <p className="text-xl font-bold text-neutral-900">{metrics.totalSupervisors}</p>
+              </div>
 
-          <div className="p-3.5 border border-neutral-200 rounded-md bg-white space-y-1">
-            <p className="text-[10px] font-semibold uppercase tracking-wider text-neutral-500">
-              Total Agents
-            </p>
-            <p className="text-xl font-bold text-neutral-900">{metrics.totalAgents}</p>
-          </div>
+              <div className="p-3.5 border border-neutral-200 rounded-md bg-white space-y-1">
+                <p className="text-[10px] font-semibold uppercase tracking-wider text-neutral-500">
+                  Total Agents
+                </p>
+                <p className="text-xl font-bold text-neutral-900">{metrics.totalAgents}</p>
+              </div>
 
-          <div className="p-3.5 border border-neutral-200 rounded-md bg-white space-y-1">
-            <p className="text-[10px] font-semibold uppercase tracking-wider text-neutral-500">
-              Total Conversations
-            </p>
-            <p className="text-xl font-bold text-neutral-900">{metrics.totalConversations}</p>
-          </div>
+              <div className="p-3.5 border border-neutral-200 rounded-md bg-white space-y-1">
+                <p className="text-[10px] font-semibold uppercase tracking-wider text-neutral-500">
+                  Total Conversations
+                </p>
+                <p className="text-xl font-bold text-neutral-900">{metrics.totalConversations}</p>
+              </div>
 
-          <div className="p-3.5 border border-neutral-200 rounded-md bg-white space-y-1">
-            <p className="text-[10px] font-semibold uppercase tracking-wider text-neutral-500">
-              Active / Closed
-            </p>
-            <p className="text-xl font-bold text-neutral-900">
-              {metrics.activeConversations} <span className="text-xs font-normal text-neutral-400">/ {metrics.closedConversations}</span>
-            </p>
-          </div>
-        </div>
-
-        {/* Supervisors List Table */}
-        <div className="space-y-3">
-          <h2 className="text-xs font-semibold uppercase tracking-wider text-neutral-500">
-            Supervisor Teams & Agent Breakdowns
-          </h2>
-
-          {isLoading && !adminAnalytics ? (
-            <div className="p-8 text-center border border-neutral-200 rounded-md text-xs text-neutral-400">
-              Loading system analytics...
+              <div className="p-3.5 border border-neutral-200 rounded-md bg-white space-y-1">
+                <p className="text-[10px] font-semibold uppercase tracking-wider text-neutral-500">
+                  Active / Closed
+                </p>
+                <p className="text-xl font-bold text-neutral-900">
+                  {metrics.activeConversations}{" "}
+                  <span className="text-xs font-normal text-neutral-400">
+                    / {metrics.closedConversations}
+                  </span>
+                </p>
+              </div>
             </div>
-          ) : supervisors.length === 0 ? (
-            <div className="p-8 text-center border border-neutral-200 border-dashed rounded-md text-xs text-neutral-500">
-              No supervisor accounts created yet in the database.
-            </div>
-          ) : (
-            <div className="border border-neutral-200 rounded-md divide-y divide-neutral-200">
-              {supervisors.map((s) => {
-                const isExpanded = expandedSup === s.id;
 
-                return (
-                  <div key={s.id} className="bg-white">
-                    <div
-                      onClick={() => setExpandedSup(isExpanded ? null : s.id)}
-                      className="p-4 flex items-center justify-between cursor-pointer hover:bg-neutral-50 transition-colors"
-                    >
-                      <div className="space-y-0.5">
-                        <div className="flex items-center space-x-2">
-                          <h3 className="text-xs font-bold text-neutral-900">{s.name}</h3>
-                          <span className="text-[11px] text-neutral-400 font-mono">({s.email})</span>
+            {/* Supervisors Tree Table */}
+            <div className="space-y-3">
+              <h2 className="text-xs font-semibold uppercase tracking-wider text-neutral-500">
+                Supervisor Teams & Hierarchy
+              </h2>
+
+              {isLoading && !adminAnalytics ? (
+                <div className="p-8 text-center border border-neutral-200 rounded-md text-xs text-neutral-400">
+                  Loading system analytics...
+                </div>
+              ) : supervisors.length === 0 ? (
+                <div className="p-8 text-center border border-neutral-200 border-dashed rounded-md text-xs text-neutral-500">
+                  No supervisor accounts created yet in the database.
+                </div>
+              ) : (
+                <div className="border border-neutral-200 rounded-md divide-y divide-neutral-200">
+                  {supervisors.map((s) => {
+                    const isExpanded = expandedSup === s.id;
+
+                    return (
+                      <div key={s.id} className="bg-white">
+                        <div
+                          onClick={() => setExpandedSup(isExpanded ? null : s.id)}
+                          className="p-4 flex items-center justify-between cursor-pointer hover:bg-neutral-50 transition-colors"
+                        >
+                          <div className="space-y-0.5">
+                            <div className="flex items-center space-x-2">
+                              <h3 className="text-xs font-bold text-neutral-900">{s.name}</h3>
+                              <span className="text-[11px] text-neutral-400 font-mono">
+                                ({s.email})
+                              </span>
+                            </div>
+                            <p className="text-[11px] text-neutral-500">
+                              Assigned Agents: {s.agentsCount} • Total Conversations:{" "}
+                              {s.totalConversationsHandled}
+                            </p>
+                          </div>
+
+                          <span className="text-xs text-neutral-400 font-medium">
+                            {isExpanded ? "Collapse ▲" : "View Agents ▼"}
+                          </span>
                         </div>
-                        <p className="text-[11px] text-neutral-500">
-                          Assigned Agents: {s.agentsCount} • Total Conversations: {s.totalConversationsHandled}
-                        </p>
-                      </div>
 
-                      <span className="text-xs text-neutral-400 font-medium">
-                        {isExpanded ? "Collapse ▲" : "View Agents ▼"}
-                      </span>
-                    </div>
+                        {isExpanded && (
+                          <div className="p-4 bg-neutral-50 border-t border-neutral-200 space-y-3">
+                            <p className="text-[11px] font-semibold text-neutral-500 uppercase tracking-wider">
+                              Agents under {s.name}
+                            </p>
 
-                    {isExpanded && (
-                      <div className="p-4 bg-neutral-50 border-t border-neutral-200 space-y-3">
-                        <p className="text-[11px] font-semibold text-neutral-500 uppercase tracking-wider">
-                          Agents under {s.name}
-                        </p>
-
-                        {s.agents.length === 0 ? (
-                          <p className="text-xs text-neutral-400 italic">No agents registered under this supervisor.</p>
-                        ) : (
-                          <div className="grid grid-cols-1 md:grid-cols-3 gap-2">
-                            {s.agents.map((ag) => (
-                              <div key={ag.id} className="p-3 bg-white border border-neutral-200 rounded space-y-1">
-                                <div className="flex justify-between items-center">
-                                  <span className="text-xs font-semibold text-neutral-900">{ag.name}</span>
-                                  <span className="text-[10px] text-neutral-400 font-mono">AGENT</span>
-                                </div>
-                                <p className="text-[11px] text-neutral-500">{ag.email}</p>
-                                <div className="pt-1 text-[11px] font-medium text-neutral-700">
-                                  Handled: {ag.conversationsHandled} chats
-                                </div>
+                            {s.agents.length === 0 ? (
+                              <p className="text-xs text-neutral-400 italic">
+                                No agents currently assigned under this supervisor.
+                              </p>
+                            ) : (
+                              <div className="grid grid-cols-1 md:grid-cols-3 gap-2">
+                                {s.agents.map((ag) => (
+                                  <div
+                                    key={ag.id}
+                                    className="p-3 bg-white border border-neutral-200 rounded space-y-1"
+                                  >
+                                    <div className="flex justify-between items-center">
+                                      <span className="text-xs font-semibold text-neutral-900">
+                                        {ag.name}
+                                      </span>
+                                      <span className="text-[10px] text-neutral-400 font-mono">
+                                        AGENT
+                                      </span>
+                                    </div>
+                                    <p className="text-[11px] text-neutral-500">{ag.email}</p>
+                                    <div className="pt-1 text-[11px] font-medium text-neutral-700">
+                                      Handled: {ag.conversationsHandled} chats
+                                    </div>
+                                  </div>
+                                ))}
                               </div>
-                            ))}
+                            )}
                           </div>
                         )}
                       </div>
-                    )}
-                  </div>
-                );
-              })}
+                    );
+                  })}
+                </div>
+              )}
             </div>
-          )}
-        </div>
+          </div>
+        )}
+
+        {/* TAB 2: AGENT ASSIGNMENT */}
+        {activeTab === "assignment" && (
+          <div className="space-y-6">
+            {/* Alert banner if unassigned agents exist */}
+            {unassignedAgents.length > 0 && (
+              <div className="p-4 bg-neutral-100 border border-neutral-300 rounded-md flex items-center justify-between">
+                <div className="space-y-0.5">
+                  <p className="text-xs font-bold text-neutral-900">
+                    {unassignedAgents.length} Unassigned Agent(s) Found
+                  </p>
+                  <p className="text-[11px] text-neutral-600">
+                    Assign agents to a supervisor so they can start handling support tickets.
+                  </p>
+                </div>
+              </div>
+            )}
+
+            {/* All Agents Assignment Table */}
+            <div className="space-y-3">
+              <h2 className="text-xs font-semibold uppercase tracking-wider text-neutral-500">
+                Agent & Supervisor Assignment Directory
+              </h2>
+
+              {allAgents.length === 0 ? (
+                <div className="p-8 text-center border border-neutral-200 border-dashed rounded-md text-xs text-neutral-500">
+                  No agents registered in the system yet.
+                </div>
+              ) : (
+                <div className="border border-neutral-200 rounded-md divide-y divide-neutral-200">
+                  {allAgents.map((ag) => (
+                    <div
+                      key={ag.id}
+                      className="p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-white"
+                    >
+                      <div className="space-y-1 max-w-md">
+                        <div className="flex items-center space-x-2">
+                          <h3 className="text-xs font-bold text-neutral-900">{ag.name}</h3>
+                          <span className="text-[11px] font-mono text-neutral-400">({ag.email})</span>
+                          <span
+                            className={`text-[10px] font-medium px-1.5 py-0.5 rounded ${
+                              ag.supervisorID
+                                ? "bg-neutral-100 text-neutral-700 border border-neutral-300"
+                                : "bg-neutral-900 text-white"
+                            }`}
+                          >
+                            {ag.supervisorID ? `Supervisor: ${ag.supervisorName}` : "Unassigned"}
+                          </span>
+                        </div>
+                        <p className="text-[11px] text-neutral-500">
+                          Handled Conversations: {ag.conversationsHandled}
+                        </p>
+                      </div>
+
+                      {/* Select Supervisor Dropdown */}
+                      <div className="flex items-center space-x-2">
+                        <select
+                          value={selectedSupMap[ag.id] || ag.supervisorID || ""}
+                          onChange={(e) =>
+                            setSelectedSupMap({ ...selectedSupMap, [ag.id]: e.target.value })
+                          }
+                          className="h-8 px-2 text-xs bg-white border border-neutral-200 rounded text-neutral-900 focus:outline-none focus:border-neutral-900"
+                        >
+                          <option value="">Select Supervisor...</option>
+                          {supervisors.map((sup) => (
+                            <option key={sup.id} value={sup.id}>
+                              {sup.name} ({sup.email})
+                            </option>
+                          ))}
+                        </select>
+
+                        <button
+                          onClick={() => handleAssignSupervisor(ag.id)}
+                          disabled={!selectedSupMap[ag.id] || assigningAgentId === ag.id}
+                          className="h-8 px-3 text-xs font-medium bg-neutral-900 text-white rounded hover:bg-neutral-800 disabled:opacity-50 transition-colors shrink-0"
+                        >
+                          {assigningAgentId === ag.id
+                            ? "Saving..."
+                            : ag.supervisorID
+                            ? "Re-assign"
+                            : "Assign"}
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+        )}
       </main>
     </div>
   );

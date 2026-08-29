@@ -11,7 +11,10 @@ const DEMO_SIGNUPS: Record<Role, { name: string; email: string; pass: string }> 
 
 export function SignupPage() {
   const navigate = useNavigate();
-  const { signup, isLoading, error, clearError } = useAuthStore();
+  const signup = useAuthStore((s) => s.signup);
+  const isLoading = useAuthStore((s) => s.isLoading);
+  const error = useAuthStore((s) => s.error);
+  const clearError = useAuthStore((s) => s.clearError);
 
   const [role, setRole] = useState<Role>("CANDIDATE");
   const [name, setName] = useState(DEMO_SIGNUPS.CANDIDATE.name);
@@ -83,7 +86,7 @@ export function SignupPage() {
         </div>
 
         {error && (
-          <div className="p-3 text-xs bg-neutral-100 border border-neutral-300 text-neutral-800 rounded-md">
+          <div className="p-3 text-xs bg-neutral-100 border border-neutral-300 text-neutral-800 rounded-md font-medium">
             {error}
           </div>
         )}
