@@ -244,7 +244,7 @@ export const useConversationStore = create<ConversationState>((set, get) => ({
     }
   },
 
-  // 9. Manage WebSocket Connection
+  // 9. Manage WebSocket Connection (Dynamic environment URL)
   connectWebSocket: (conversationId?: string) => {
     const token = useAuthStore.getState().token;
     if (!token) return;
@@ -254,7 +254,13 @@ export const useConversationStore = create<ConversationState>((set, get) => ({
       currentSocket.close();
     }
 
-    const ws = new WebSocket(`ws://localhost:3000/ws?token=${token}`);
+    const rawWsUrl =
+      (typeof import.meta !== "undefined" && import.meta.env?.VITE_WS_URL) ||
+      (typeof process !== "undefined" && process.env?.VITE_WS_URL) ||
+      "ws://localhost:3000";
+
+    const wsUrl = rawWsUrl.replace(/^http/, "ws");
+    const ws = new WebSocket(`${wsUrl}/ws?token=${token}`);
 
     ws.onopen = () => {
       console.log("WebSocket connected to backend");

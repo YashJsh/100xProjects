@@ -1,6 +1,17 @@
+import "dotenv/config";
 import { PrismaClient } from "@prisma/client";
-import { PrismaBetterSqlite3 } from "@prisma/adapter-better-sqlite3";
+import { PrismaPg } from "@prisma/adapter-pg";
+import pg from "pg";
 
-const adapter = new PrismaBetterSqlite3({ url: "./db/dev.db" });
+const connectionString = process.env.DATABASE_URL;
+
+const pool = new pg.Pool({
+  connectionString,
+  ssl: {
+    rejectUnauthorized: false,
+  },
+});
+
+const adapter = new PrismaPg(pool);
 
 export const prisma = new PrismaClient({ adapter });

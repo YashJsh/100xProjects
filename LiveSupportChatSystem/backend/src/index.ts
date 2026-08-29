@@ -10,7 +10,8 @@ import { SupervisorRouter } from "./routes/supervisor.route";
 import { initWebSocket } from "./socket";
 
 dotenv.config();
-const HTTP_PORT = process.env.HTTP_PORT || 3000;
+const PORT = process.env.PORT || process.env.HTTP_PORT || 3000;
+const FRONTEND_URL = process.env.FRONTEND_URL || "http://localhost:5173";
 
 const app = express();
 const server = http.createServer(app);
@@ -20,13 +21,19 @@ initWebSocket(server);
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
-app.use(cors());
+app.use(
+  cors({
+    origin: [FRONTEND_URL, "http://localhost:5173"],
+    credentials: true,
+  })
+);
 
 app.use("/auth", AuthRouter);
 app.use("/conversations", authMiddleware, ConversationRouter);
 app.use("/admin", authMiddleware, AdminRouter);
 app.use("/supervisor", authMiddleware, SupervisorRouter);
 
-server.listen(HTTP_PORT, () => {
-    console.log(`Server is listening on PORT : ${HTTP_PORT}`);
+server.listen(PORT, () => {
+  console.log(`🚀 Backend Server listening on PORT : ${PORT}`);
+  console.log(`🌐 Allowed CORS Frontend URL : ${FRONTEND_URL}`);
 });
