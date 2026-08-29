@@ -2,13 +2,27 @@ import React, { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { useAuthStore, type Role } from "@/store/auth.store";
 
+const DEMO_CREDENTIALS: Record<Role, { email: string; pass: string }> = {
+  CANDIDATE: { email: "candidate@example.com", pass: "password123" },
+  AGENT: { email: "agent@example.com", pass: "password123" },
+  SUPERVISOR: { email: "supervisor@example.com", pass: "password123" },
+  ADMIN: { email: "admin@example.com", pass: "password123" },
+};
+
 export function LoginPage() {
   const navigate = useNavigate();
   const { signin, isLoading, error, clearError } = useAuthStore();
 
-  const [email, setEmail] = useState("supervisor@example.com");
-  const [password, setPassword] = useState("password123");
-  const [selectedRole, setSelectedRole] = useState<Role>("SUPERVISOR");
+  const [selectedRole, setSelectedRole] = useState<Role>("CANDIDATE");
+  const [email, setEmail] = useState(DEMO_CREDENTIALS.CANDIDATE.email);
+  const [password, setPassword] = useState(DEMO_CREDENTIALS.CANDIDATE.pass);
+
+  const handleRoleChange = (role: Role) => {
+    setSelectedRole(role);
+    setEmail(DEMO_CREDENTIALS[role].email);
+    setPassword(DEMO_CREDENTIALS[role].pass);
+    clearError();
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -44,7 +58,28 @@ export function LoginPage() {
       <div className="w-full max-w-sm mx-auto my-auto space-y-6">
         <div className="space-y-1">
           <h1 className="text-xl font-bold tracking-tight text-neutral-900">Sign in to your account</h1>
-          <p className="text-xs text-neutral-500">Enter your credentials below to access support</p>
+          <p className="text-xs text-neutral-500">Select a role preset or enter your credentials below</p>
+        </div>
+
+        {/* Quick Demo Role Preset Pills */}
+        <div className="space-y-1">
+          <label className="text-[11px] font-semibold text-neutral-500 uppercase tracking-wider">Demo Account Presets</label>
+          <div className="grid grid-cols-4 gap-1 p-1 bg-neutral-100 border border-neutral-200 rounded-md">
+            {(["CANDIDATE", "AGENT", "SUPERVISOR", "ADMIN"] as Role[]).map((r) => (
+              <button
+                key={r}
+                type="button"
+                onClick={() => handleRoleChange(r)}
+                className={`py-1 text-[11px] font-semibold rounded transition-all ${
+                  selectedRole === r
+                    ? "bg-white text-neutral-900 shadow-xs border border-neutral-200"
+                    : "text-neutral-500 hover:text-neutral-900"
+                }`}
+              >
+                {r.charAt(0) + r.slice(1).toLowerCase()}
+              </button>
+            ))}
+          </div>
         </div>
 
         {error && (
@@ -54,20 +89,6 @@ export function LoginPage() {
         )}
 
         <form onSubmit={handleSubmit} className="space-y-4">
-          <div className="space-y-1">
-            <label className="text-xs font-medium text-neutral-700">Role Preference (Fallback)</label>
-            <select
-              value={selectedRole}
-              onChange={(e) => setSelectedRole(e.target.value as Role)}
-              className="w-full h-9 px-3 text-xs bg-white border border-neutral-200 rounded-md focus:outline-none focus:border-neutral-900 text-neutral-900"
-            >
-              <option value="SUPERVISOR">Supervisor</option>
-              <option value="AGENT">Support Agent</option>
-              <option value="CANDIDATE">Candidate</option>
-              <option value="ADMIN">Admin</option>
-            </select>
-          </div>
-
           <div className="space-y-1">
             <label className="text-xs font-medium text-neutral-700">Email</label>
             <input
@@ -97,7 +118,7 @@ export function LoginPage() {
             disabled={isLoading}
             className="w-full h-9 text-xs font-medium bg-neutral-900 text-white rounded-md hover:bg-neutral-800 transition-colors disabled:opacity-50"
           >
-            {isLoading ? "Signing in..." : "Continue"}
+            {isLoading ? "Signing in..." : `Sign in as ${selectedRole.charAt(0) + selectedRole.slice(1).toLowerCase()}`}
           </button>
         </form>
 
