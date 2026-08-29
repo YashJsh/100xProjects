@@ -1,38 +1,35 @@
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { APITester } from "./APITester";
+import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
+import { LoginPage } from "./pages/auth/LoginPage";
+import { SignupPage } from "./pages/auth/SignupPage";
+import { CandidateDashboardPage } from "./pages/candidate/CandidateDashboardPage";
+import { CandidateConversationPage } from "./pages/candidate/CandidateConversationPage";
+import { AgentDashboardPage } from "./pages/agent/AgentDashboardPage";
+import { AgentConversationPage } from "./pages/agent/AgentConversationPage";
+import { AdminDashboardPage } from "./pages/admin/AdminDashboardPage";
 import "./index.css";
-
-import logo from "./logo.svg";
-import reactLogo from "./react.svg";
 
 export function App() {
   return (
-    <div className="container mx-auto p-8 text-center relative z-10">
-      <div className="flex justify-center items-center gap-8 mb-8">
-        <img
-          src={logo}
-          alt="Bun Logo"
-          className="h-36 p-6 transition-all duration-300 hover:drop-shadow-[0_0_2em_#646cffaa] scale-120"
-        />
-        <img
-          src={reactLogo}
-          alt="React Logo"
-          className="h-36 p-6 transition-all duration-300 hover:drop-shadow-[0_0_2em_#61dafbaa] [animation:spin_20s_linear_infinite]"
-        />
-      </div>
-      <Card>
-        <CardHeader className="gap-4">
-          <CardTitle className="text-3xl font-bold">Bun + React</CardTitle>
-          <CardDescription>
-            Edit <code className="rounded bg-muted px-[0.3rem] py-[0.2rem] font-mono">src/App.tsx</code> and save to
-            test HMR
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <APITester />
-        </CardContent>
-      </Card>
-    </div>
+    <BrowserRouter>
+      <Routes>
+        <Route path="/" element={<Navigate to="/login" replace />} />
+        <Route path="/login" element={<LoginPage />} />
+        <Route path="/signup" element={<SignupPage />} />
+        
+        {/* Candidate Routes */}
+        <Route path="/candidate/dashboard" element={<CandidateDashboardPage />} />
+        <Route path="/candidate/conversation/:id" element={<CandidateConversationPage />} />
+        
+        {/* Agent Routes */}
+        <Route path="/agent/dashboard" element={<AgentDashboardPage />} />
+        <Route path="/agent/conversation/:id" element={<AgentConversationPage />} />
+
+        {/* Admin / Supervisor Routes */}
+        <Route path="/admin/dashboard" element={<AdminDashboardPage />} />
+
+        <Route path="*" element={<Navigate to="/login" replace />} />
+      </Routes>
+    </BrowserRouter>
   );
 }
 
