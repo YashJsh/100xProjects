@@ -6,9 +6,9 @@ export function LoginPage() {
   const navigate = useNavigate();
   const { signin, isLoading, error, clearError } = useAuthStore();
 
-  const [email, setEmail] = useState("candidate@example.com");
+  const [email, setEmail] = useState("supervisor@example.com");
   const [password, setPassword] = useState("password123");
-  const [selectedRole, setSelectedRole] = useState<Role>("CANDIDATE");
+  const [selectedRole, setSelectedRole] = useState<Role>("SUPERVISOR");
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -17,12 +17,13 @@ export function LoginPage() {
     try {
       const user = await signin({ email, password });
 
-      // Navigate based on actual backend user role or selected role fallback
       const role = user.role || selectedRole;
-      if (role === "AGENT") {
-        navigate("/agent/dashboard");
-      } else if (role === "SUPERVISOR" || role === "ADMIN") {
+      if (role === "SUPERVISOR") {
+        navigate("/supervisor/dashboard");
+      } else if (role === "ADMIN") {
         navigate("/admin/dashboard");
+      } else if (role === "AGENT") {
+        navigate("/agent/dashboard");
       } else {
         navigate("/candidate/dashboard");
       }
@@ -60,9 +61,10 @@ export function LoginPage() {
               onChange={(e) => setSelectedRole(e.target.value as Role)}
               className="w-full h-9 px-3 text-xs bg-white border border-neutral-200 rounded-md focus:outline-none focus:border-neutral-900 text-neutral-900"
             >
-              <option value="CANDIDATE">Candidate</option>
+              <option value="SUPERVISOR">Supervisor</option>
               <option value="AGENT">Support Agent</option>
-              <option value="SUPERVISOR">Supervisor / Admin</option>
+              <option value="CANDIDATE">Candidate</option>
+              <option value="ADMIN">Admin</option>
             </select>
           </div>
 

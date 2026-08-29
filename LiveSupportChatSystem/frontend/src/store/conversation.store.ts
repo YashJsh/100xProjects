@@ -11,6 +11,13 @@ export interface MessageItem {
   timestamp: string;
 }
 
+export interface AgentItem {
+  id: string;
+  name: string;
+  email: string;
+  createdAt: string;
+}
+
 export interface ConversationItem {
   id: string;
   candidateID: string;
@@ -32,6 +39,7 @@ export interface ConversationItem {
 
 interface ConversationState {
   conversations: ConversationItem[];
+  supervisorAgents: AgentItem[];
   activeConversation: ConversationItem | null;
   messages: MessageItem[];
   isLoading: boolean;
@@ -46,6 +54,10 @@ interface ConversationState {
   createConversation: () => Promise<ConversationItem>;
   fetchConversationById: (id: string) => Promise<ConversationItem>;
   closeConversation: (id: string) => Promise<void>;
+
+  // Supervisor REST Actions
+  fetchSupervisorAgents: () => Promise<AgentItem[]>;
+  assignAgentToConversation: (conversationId: string, agentId: string) => Promise<void>;
 
   // WebSocket Actions
   connectWebSocket: (conversationId?: string) => void;
@@ -62,6 +74,7 @@ interface ConversationState {
 
 export const useConversationStore = create<ConversationState>((set, get) => ({
   conversations: [],
+  supervisorAgents: [],
   activeConversation: null,
   messages: [],
   isLoading: false,
@@ -71,7 +84,7 @@ export const useConversationStore = create<ConversationState>((set, get) => ({
 
   clearError: () => set({ error: null }),
 
-  // 1. Fetch All Conversations via Axios REST (Filters automatically on backend based on user role)
+  // 1. Fetch Conversations via Axios REST
   fetchConversations: async () => {
     set({ isLoading: true, error: null });
     try {
@@ -82,7 +95,41 @@ export const useConversationStore = create<ConversationState>((set, get) => ({
     }
   },
 
-  // 2. Create New Candidate Conversation via Axios REST
+  // 2. Fetch Supervisor's Managed Agents
+  fetchSupervisorAgents: async () => {
+    set({ isLoading: true, error: null });
+    try {
+      const { data } = await api.get("/supervisor/agents");
+      set({ supervisorAgents: data.agents, isLoading: false });
+      return data.agents;
+    } catch (err: any) {
+      set({ error: err.message || "Error fetching supervisor agents", isLoading: false });
+      throw err;
+    }
+  },
+
+  // 3. Assign Agent to Conversation via Supervisor API
+  assignAgentToConversation: async (conversationId: string, agentId: string) => {
+    set({ isLoading: true, error: null });
+    try {
+      const { data } = await api.post(`/conversations/${conversationId}/assign`, { agentId });
+      
+      // Update local state
+      set((state) => ({
+        conversations: state.conversations.map((c) =>
+          c.id === conversationId
+            ? { ...c, agentID: agentId, agent: data.assignedAgent, status: "IN_PROGRESS" }
+            : c
+        ),
+        isLoading: false,
+      }));
+    } catch (err: any) {
+      set({ error: err.message || "Error assigning agent", isLoading: false });
+      throw err;
+    }
+  },
+
+  // 4. Create New Conversation
   createConversation: async () => {
     set({ isLoading: true, error: null });
     try {
@@ -101,7 +148,7 @@ export const useConversationStore = create<ConversationState>((set, get) => ({
     }
   },
 
-  // 3. Fetch Single Conversation Details + Message History via Axios REST
+  // 5. Fetch Single Conversation Details
   fetchConversationById: async (id: string) => {
     set({ isLoading: true, error: null });
     try {
@@ -130,7 +177,7 @@ export const useConversationStore = create<ConversationState>((set, get) => ({
     }
   },
 
-  // 4. Close Conversation via Axios REST
+  // 6. Close Conversation
   closeConversation: async (id: string) => {
     set({ isLoading: true, error: null });
     try {
@@ -143,7 +190,7 @@ export const useConversationStore = create<ConversationState>((set, get) => ({
     }
   },
 
-  // 5. Manage WebSocket Connection
+  // 7. Manage WebSocket Connection
   connectWebSocket: (conversationId?: string) => {
     const token = useAuthStore.getState().token;
     if (!token) return;
@@ -168,14 +215,12 @@ export const useConversationStore = create<ConversationState>((set, get) => ({
       try {
         const payload = JSON.parse(event.data);
 
-        // Handle error payloads
         if (payload.event === "error" || payload.success === false) {
           const errorMsg = payload.data?.message || payload.error || "WebSocket error";
           set({ error: typeof errorMsg === "string" ? errorMsg : JSON.stringify(errorMsg) });
           return;
         }
 
-        // Handle real-time incoming messages
         if (payload.event === "new_message") {
           const newMsg = payload.data;
           const currentUser = useAuthStore.getState().user;

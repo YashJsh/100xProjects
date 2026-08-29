@@ -5,6 +5,7 @@ import { CandidateDashboardPage } from "./pages/candidate/CandidateDashboardPage
 import { CandidateConversationPage } from "./pages/candidate/CandidateConversationPage";
 import { AgentDashboardPage } from "./pages/agent/AgentDashboardPage";
 import { AgentConversationPage } from "./pages/agent/AgentConversationPage";
+import { SupervisorDashboardPage } from "./pages/supervisor/SupervisorDashboardPage";
 import { AdminDashboardPage } from "./pages/admin/AdminDashboardPage";
 import "./index.css";
 
@@ -24,7 +25,10 @@ export function App() {
         <Route path="/agent/dashboard" element={<AgentDashboardPage />} />
         <Route path="/agent/conversation/:id" element={<AgentConversationPage />} />
 
-        {/* Admin / Supervisor Routes */}
+        {/* Supervisor Routes */}
+        <Route path="/supervisor/dashboard" element={<SupervisorDashboardPage />} />
+
+        {/* Admin Routes */}
         <Route path="/admin/dashboard" element={<AdminDashboardPage />} />
 
         <Route path="*" element={<Navigate to="/login" replace />} />

@@ -6,10 +6,10 @@ export function SignupPage() {
   const navigate = useNavigate();
   const { signup, isLoading, error, clearError } = useAuthStore();
 
-  const [name, setName] = useState("Alex Candidate");
-  const [email, setEmail] = useState("alex@example.com");
+  const [name, setName] = useState("Marcus Vance");
+  const [email, setEmail] = useState("supervisor@example.com");
   const [password, setPassword] = useState("password123");
-  const [role, setRole] = useState<Role>("CANDIDATE");
+  const [role, setRole] = useState<Role>("SUPERVISOR");
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -19,10 +19,12 @@ export function SignupPage() {
       const user = await signup({ name, email, password, role });
 
       const userRole = user.role || role;
-      if (userRole === "AGENT") {
-        navigate("/agent/dashboard");
-      } else if (userRole === "SUPERVISOR" || userRole === "ADMIN") {
+      if (userRole === "SUPERVISOR") {
+        navigate("/supervisor/dashboard");
+      } else if (userRole === "ADMIN") {
         navigate("/admin/dashboard");
+      } else if (userRole === "AGENT") {
+        navigate("/agent/dashboard");
       } else {
         navigate("/candidate/dashboard");
       }
@@ -57,7 +59,7 @@ export function SignupPage() {
               type="text"
               value={name}
               onChange={(e) => setName(e.target.value)}
-              placeholder="Alex Johnson"
+              placeholder="Marcus Vance"
               required
               className="w-full h-9 px-3 text-xs bg-white border border-neutral-200 rounded-md focus:outline-none focus:border-neutral-900 text-neutral-900"
             />
@@ -94,9 +96,10 @@ export function SignupPage() {
               onChange={(e) => setRole(e.target.value as Role)}
               className="w-full h-9 px-3 text-xs bg-white border border-neutral-200 rounded-md focus:outline-none focus:border-neutral-900 text-neutral-900"
             >
-              <option value="CANDIDATE">Candidate</option>
+              <option value="SUPERVISOR">Supervisor</option>
               <option value="AGENT">Support Agent</option>
-              <option value="SUPERVISOR">Supervisor / Admin</option>
+              <option value="CANDIDATE">Candidate</option>
+              <option value="ADMIN">Admin</option>
             </select>
           </div>
 
@@ -112,7 +115,7 @@ export function SignupPage() {
         <div className="text-center pt-2">
           <p className="text-xs text-neutral-500">
             Already have an account?{" "}
-            <Link to="/login" className="text-neutral-900 font-medium hover:underline">
+            <Link to="/signup" className="text-neutral-900 font-medium hover:underline">
               Sign in
             </Link>
           </p>
