@@ -1,4 +1,5 @@
 import { create } from "zustand";
+import { api } from "@/lib/api";
 import { useAuthStore } from "./auth.store";
 
 export interface MessageItem {
@@ -13,6 +14,11 @@ export interface MessageItem {
 export interface ConversationItem {
   id: string;
   candidateID: string;
+  candidate?: {
+    id: string;
+    name: string;
+    email: string;
+  } | null;
   agentID?: string | null;
   agent?: {
     id: string;
@@ -39,19 +45,20 @@ interface ConversationState {
   fetchConversations: () => Promise<void>;
   createConversation: () => Promise<ConversationItem>;
   fetchConversationById: (id: string) => Promise<ConversationItem>;
+  closeConversation: (id: string) => Promise<void>;
 
   // WebSocket Actions
   connectWebSocket: (conversationId?: string) => void;
   disconnectWebSocket: () => void;
   joinConversationSocket: (conversationId: string) => void;
   sendMessageSocket: (conversationId: string, content: string) => void;
+  closeConversationSocket: (conversationId: string) => void;
 
   // Local Actions
   addMessage: (message: MessageItem) => void;
+  updateConversationStatus: (id: string, status: "OPEN" | "IN_PROGRESS" | "CLOSED") => void;
   clearError: () => void;
 }
-
-const API_BASE_URL = "http://localhost:3000";
 
 export const useConversationStore = create<ConversationState>((set, get) => ({
   conversations: [],
@@ -64,46 +71,24 @@ export const useConversationStore = create<ConversationState>((set, get) => ({
 
   clearError: () => set({ error: null }),
 
-  // 1. Fetch All Candidate Conversations via REST
+  // 1. Fetch All Conversations via Axios REST (Filters automatically on backend based on user role)
   fetchConversations: async () => {
-    const token = useAuthStore.getState().token;
-    if (!token) return;
-
     set({ isLoading: true, error: null });
     try {
-      const res = await fetch(`${API_BASE_URL}/conversations`, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.message || "Failed to fetch conversations");
-
+      const { data } = await api.get("/conversations");
       set({ conversations: data.conversations, isLoading: false });
     } catch (err: any) {
       set({ error: err.message || "Error fetching conversations", isLoading: false });
     }
   },
 
-  // 2. Create New Candidate Conversation via REST
+  // 2. Create New Candidate Conversation via Axios REST
   createConversation: async () => {
-    const token = useAuthStore.getState().token;
-    if (!token) throw new Error("Unauthorized");
-
     set({ isLoading: true, error: null });
     try {
-      const res = await fetch(`${API_BASE_URL}/conversations`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify({}),
-      });
-
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.message || "Failed to create conversation");
-
+      const { data } = await api.post("/conversations", {});
       const newConv = data.conversation;
+
       set((state) => ({
         conversations: [newConv, ...state.conversations],
         isLoading: false,
@@ -116,25 +101,17 @@ export const useConversationStore = create<ConversationState>((set, get) => ({
     }
   },
 
-  // 3. Fetch Single Conversation Details + Message History
+  // 3. Fetch Single Conversation Details + Message History via Axios REST
   fetchConversationById: async (id: string) => {
-    const token = useAuthStore.getState().token;
-    if (!token) throw new Error("Unauthorized");
-
     set({ isLoading: true, error: null });
     try {
-      const res = await fetch(`${API_BASE_URL}/conversations/${id}`, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.message || "Failed to fetch conversation");
-
+      const { data } = await api.get(`/conversations/${id}`);
       const conv = data.conversation;
+
       const historyMessages: MessageItem[] = (conv.messages || []).map((m: any) => ({
         id: m.id,
         senderId: m.senderID,
-        senderName: m.role === "CANDIDATE" ? "You" : m.role === "AGENT" ? conv.agent?.name || "Agent" : "System",
+        senderName: m.role === "CANDIDATE" ? "Candidate" : m.role === "AGENT" ? conv.agent?.name || "Agent" : "System",
         senderRole: m.role,
         content: m.content,
         timestamp: new Date(m.createdAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
@@ -153,12 +130,24 @@ export const useConversationStore = create<ConversationState>((set, get) => ({
     }
   },
 
-  // 4. Manage WebSocket Connection
+  // 4. Close Conversation via Axios REST
+  closeConversation: async (id: string) => {
+    set({ isLoading: true, error: null });
+    try {
+      await api.post(`/conversations/${id}/close`);
+      get().updateConversationStatus(id, "CLOSED");
+      set({ isLoading: false });
+    } catch (err: any) {
+      set({ error: err.message || "Error closing conversation", isLoading: false });
+      throw err;
+    }
+  },
+
+  // 5. Manage WebSocket Connection
   connectWebSocket: (conversationId?: string) => {
     const token = useAuthStore.getState().token;
     if (!token) return;
 
-    // Disconnect previous socket if any
     const currentSocket = get().socket;
     if (currentSocket) {
       currentSocket.close();
@@ -178,6 +167,13 @@ export const useConversationStore = create<ConversationState>((set, get) => ({
     ws.onmessage = (event) => {
       try {
         const payload = JSON.parse(event.data);
+
+        // Handle error payloads
+        if (payload.event === "error" || payload.success === false) {
+          const errorMsg = payload.data?.message || payload.error || "WebSocket error";
+          set({ error: typeof errorMsg === "string" ? errorMsg : JSON.stringify(errorMsg) });
+          return;
+        }
 
         // Handle real-time incoming messages
         if (payload.event === "new_message") {
@@ -199,8 +195,6 @@ export const useConversationStore = create<ConversationState>((set, get) => ({
           if (closedConvId) {
             get().updateConversationStatus(closedConvId, "CLOSED");
           }
-        } else if (payload.event === "error") {
-          console.error("WebSocket Error Payload:", payload.data);
         }
       } catch (e) {
         console.error("Error parsing WebSocket message:", e);
@@ -249,12 +243,11 @@ export const useConversationStore = create<ConversationState>((set, get) => ({
         })
       );
 
-      // Optimistically append sender message locally
       const optimisticMsg: MessageItem = {
         id: `opt-${Date.now()}`,
         senderId: currentUser?.id || "me",
         senderName: "You",
-        senderRole: currentUser?.role || "CANDIDATE",
+        senderRole: currentUser?.role || "AGENT",
         content,
         timestamp: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
       };
@@ -263,8 +256,31 @@ export const useConversationStore = create<ConversationState>((set, get) => ({
     }
   },
 
+  closeConversationSocket: (conversationId: string) => {
+    const socket = get().socket;
+    if (socket && socket.readyState === WebSocket.OPEN) {
+      socket.send(
+        JSON.stringify({
+          event: "close_conversation",
+          data: { conversationId },
+        })
+      );
+    }
+  },
+
   addMessage: (message) =>
     set((state) => ({
       messages: [...state.messages, message],
+    })),
+
+  updateConversationStatus: (id, status) =>
+    set((state) => ({
+      conversations: state.conversations.map((c) =>
+        c.id === id ? { ...c, status } : c
+      ),
+      activeConversation:
+        state.activeConversation && state.activeConversation.id === id
+          ? { ...state.activeConversation, status }
+          : state.activeConversation,
     })),
 }));

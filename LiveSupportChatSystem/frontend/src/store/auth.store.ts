@@ -1,4 +1,5 @@
 import { create } from "zustand";
+import { api } from "@/lib/api";
 
 export type Role = "CANDIDATE" | "SUPERVISOR" | "AGENT" | "ADMIN";
 
@@ -23,8 +24,6 @@ interface AuthState {
   clearError: () => void;
 }
 
-const API_BASE_URL = "http://localhost:3000";
-
 export const useAuthStore = create<AuthState>((set, get) => ({
   user: (() => {
     const savedUser = localStorage.getItem("user");
@@ -39,17 +38,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   signup: async ({ name, email, password, role = "CANDIDATE" }) => {
     set({ isLoading: true, error: null });
     try {
-      const res = await fetch(`${API_BASE_URL}/auth/signup`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name, email, password, role }),
-      });
-
-      const data = await res.json();
-
-      if (!res.ok) {
-        throw new Error(data.message || "Signup failed");
-      }
+      const { data } = await api.post("/auth/signup", { name, email, password, role });
 
       localStorage.setItem("token", data.token);
       localStorage.setItem("user", JSON.stringify(data.user));
@@ -71,17 +60,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   signin: async ({ email, password }) => {
     set({ isLoading: true, error: null });
     try {
-      const res = await fetch(`${API_BASE_URL}/auth/signin`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email, password }),
-      });
-
-      const data = await res.json();
-
-      if (!res.ok) {
-        throw new Error(data.message || "Invalid credentials");
-      }
+      const { data } = await api.post("/auth/signin", { email, password });
 
       localStorage.setItem("token", data.token);
       localStorage.setItem("user", JSON.stringify(data.user));
@@ -106,18 +85,9 @@ export const useAuthStore = create<AuthState>((set, get) => ({
 
     set({ isLoading: true });
     try {
-      const res = await fetch(`${API_BASE_URL}/auth/me`, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
+      const { data } = await api.get("/auth/me");
 
-      if (!res.ok) {
-        get().logout();
-        return null;
-      }
-
-      const data = await res.json();
       localStorage.setItem("user", JSON.stringify(data.user));
-
       set({ user: data.user, isLoading: false });
       return data.user;
     } catch (err) {
