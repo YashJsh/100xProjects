@@ -1,20 +1,33 @@
 import React, { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
+import { useAuthStore, type Role } from "@/store/auth.store";
 
 export function LoginPage() {
   const navigate = useNavigate();
+  const { signin, isLoading, error, clearError } = useAuthStore();
+
   const [email, setEmail] = useState("candidate@example.com");
   const [password, setPassword] = useState("password123");
-  const [role, setRole] = useState<"CANDIDATE" | "AGENT" | "SUPERVISOR">("CANDIDATE");
+  const [selectedRole, setSelectedRole] = useState<Role>("CANDIDATE");
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (role === "AGENT") {
-      navigate("/agent/dashboard");
-    } else if (role === "SUPERVISOR") {
-      navigate("/admin/dashboard");
-    } else {
-      navigate("/candidate/dashboard");
+    clearError();
+
+    try {
+      const user = await signin({ email, password });
+
+      // Navigate based on actual backend user role or selected role fallback
+      const role = user.role || selectedRole;
+      if (role === "AGENT") {
+        navigate("/agent/dashboard");
+      } else if (role === "SUPERVISOR" || role === "ADMIN") {
+        navigate("/admin/dashboard");
+      } else {
+        navigate("/candidate/dashboard");
+      }
+    } catch (err) {
+      // Error handled by store
     }
   };
 
@@ -33,12 +46,18 @@ export function LoginPage() {
           <p className="text-xs text-neutral-500">Enter your credentials below to access support</p>
         </div>
 
+        {error && (
+          <div className="p-3 text-xs bg-neutral-100 border border-neutral-300 text-neutral-800 rounded-md">
+            {error}
+          </div>
+        )}
+
         <form onSubmit={handleSubmit} className="space-y-4">
           <div className="space-y-1">
-            <label className="text-xs font-medium text-neutral-700">Account Type</label>
+            <label className="text-xs font-medium text-neutral-700">Role Preference (Fallback)</label>
             <select
-              value={role}
-              onChange={(e) => setRole(e.target.value as any)}
+              value={selectedRole}
+              onChange={(e) => setSelectedRole(e.target.value as Role)}
               className="w-full h-9 px-3 text-xs bg-white border border-neutral-200 rounded-md focus:outline-none focus:border-neutral-900 text-neutral-900"
             >
               <option value="CANDIDATE">Candidate</option>
@@ -73,9 +92,10 @@ export function LoginPage() {
 
           <button
             type="submit"
-            className="w-full h-9 text-xs font-medium bg-neutral-900 text-white rounded-md hover:bg-neutral-800 transition-colors"
+            disabled={isLoading}
+            className="w-full h-9 text-xs font-medium bg-neutral-900 text-white rounded-md hover:bg-neutral-800 transition-colors disabled:opacity-50"
           >
-            Continue
+            {isLoading ? "Signing in..." : "Continue"}
           </button>
         </form>
 
