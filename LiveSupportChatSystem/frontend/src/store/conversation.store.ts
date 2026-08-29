@@ -2,6 +2,20 @@ import { create } from "zustand";
 import { api } from "../lib/api";
 import { useAuthStore } from "./auth.store";
 
+const getEnvVar = (key: string, fallback: string): string => {
+  try {
+    if (typeof import.meta !== "undefined" && import.meta && (import.meta as any).env && (import.meta as any).env[key]) {
+      return (import.meta as any).env[key];
+    }
+  } catch (e) {}
+  try {
+    if (typeof process !== "undefined" && process && process.env && process.env[key]) {
+      return process.env[key] as string;
+    }
+  } catch (e) {}
+  return fallback;
+};
+
 export interface MessageItem {
   id: string;
   senderId: string;
@@ -244,7 +258,7 @@ export const useConversationStore = create<ConversationState>((set, get) => ({
     }
   },
 
-  // 9. Manage WebSocket Connection (Dynamic environment URL)
+  // 9. Manage WebSocket Connection (Safe Environment resolution)
   connectWebSocket: (conversationId?: string) => {
     const token = useAuthStore.getState().token;
     if (!token) return;
@@ -254,11 +268,7 @@ export const useConversationStore = create<ConversationState>((set, get) => ({
       currentSocket.close();
     }
 
-    const rawWsUrl =
-      (typeof import.meta !== "undefined" && import.meta.env?.VITE_WS_URL) ||
-      (typeof process !== "undefined" && process.env?.VITE_WS_URL) ||
-      "ws://localhost:3000";
-
+    const rawWsUrl = getEnvVar("VITE_WS_URL", "ws://localhost:3000");
     const wsUrl = rawWsUrl.replace(/^http/, "ws");
     const ws = new WebSocket(`${wsUrl}/ws?token=${token}`);
 

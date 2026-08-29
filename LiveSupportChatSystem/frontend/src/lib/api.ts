@@ -1,9 +1,22 @@
 import axios from "axios";
 
-const API_BASE_URL =
-  (typeof import.meta !== "undefined" && import.meta.env?.VITE_API_URL) ||
-  (typeof process !== "undefined" && process.env?.VITE_API_URL) ||
-  "http://localhost:3000";
+const getEnvVar = (key: string, fallback: string): string => {
+  try {
+    if (typeof import.meta !== "undefined" && import.meta && (import.meta as any).env && (import.meta as any).env[key]) {
+      return (import.meta as any).env[key];
+    }
+  } catch (e) {}
+  try {
+    if (typeof process !== "undefined" && process && process.env && process.env[key]) {
+      return process.env[key] as string;
+    }
+  } catch (e) {}
+  return fallback;
+};
+
+export const API_BASE_URL = getEnvVar("VITE_API_URL", "http://localhost:3000");
+
+console.log("🌐 Configured API_BASE_URL:", API_BASE_URL);
 
 export const api = axios.create({
   baseURL: API_BASE_URL,
