@@ -7,13 +7,14 @@ datasource db {
 }
 
 model User {
-  id           String   @id @default(uuid())
-  email        String   @unique
-  name         String
-  password     String
-  role         Role
-  supervisorID String?
-  createdAt    DateTime @default(now())
+  id            String         @id @default(uuid())
+  email         String         @unique
+  name          String
+  password      String
+  role          Role
+  supervisorID  String?
+  createdAt     DateTime       @default(now())
+  conversations Conversation[]
 }
 
 model Message {
@@ -30,6 +31,7 @@ model Conversation {
   id          String    @id @default(uuid())
   candidateID String
   agentID     String?
+  agent       User?     @relation(fields: [agentID], references: [id])
   status      Status    @default(OPEN)
   createdAt   DateTime  @default(now())
   messages    Message[]
