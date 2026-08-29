@@ -1,60 +1,25 @@
-import React, { useState } from "react";
+import React, { useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-
-interface Conversation {
-  id: string;
-  topic: string;
-  status: "OPEN" | "IN_PROGRESS" | "CLOSED";
-  agentName: string;
-  updatedAt: string;
-}
+import { useAuthStore } from "@/store/auth.store";
+import { useConversationStore } from "@/store/conversation.store";
 
 export function CandidateDashboardPage() {
   const navigate = useNavigate();
+  const { user, logout } = useAuthStore();
+  const { conversations, fetchConversations, createConversation, isLoading, error } =
+    useConversationStore();
 
-  const [conversations, setConversations] = useState<Conversation[]>([
-    {
-      id: "conv-101",
-      topic: "Issue with candidate technical assessment submission",
-      status: "IN_PROGRESS",
-      agentName: "Sarah Miller",
-      updatedAt: "10m ago",
-    },
-    {
-      id: "conv-102",
-      topic: "Clarification on live coding round instructions",
-      status: "OPEN",
-      agentName: "Unassigned",
-      updatedAt: "25m ago",
-    },
-    {
-      id: "conv-103",
-      topic: "System environment setup help for Docker",
-      status: "CLOSED",
-      agentName: "David Smith",
-      updatedAt: "Yesterday",
-    },
-  ]);
+  useEffect(() => {
+    fetchConversations();
+  }, [fetchConversations]);
 
-  const [isCreating, setIsCreating] = useState(false);
-  const [topic, setTopic] = useState("");
-
-  const handleCreate = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!topic.trim()) return;
-
-    const newConv: Conversation = {
-      id: `conv-${Math.floor(100 + Math.random() * 900)}`,
-      topic: topic.trim(),
-      status: "OPEN",
-      agentName: "Unassigned",
-      updatedAt: "Just now",
-    };
-
-    setConversations([newConv, ...conversations]);
-    setTopic("");
-    setIsCreating(false);
-    navigate(`/candidate/conversation/${newConv.id}`);
+  const handleCreateTicket = async () => {
+    try {
+      const newConv = await createConversation();
+      navigate(`/candidate/conversation/${newConv.id}`);
+    } catch (err) {
+      // Error handled by store
+    }
   };
 
   return (
@@ -69,9 +34,12 @@ export function CandidateDashboardPage() {
         </div>
 
         <div className="flex items-center space-x-4">
-          <span className="text-xs text-neutral-500">Alex Candidate</span>
+          <span className="text-xs font-medium text-neutral-900">{user?.name || user?.email || "Candidate"}</span>
           <button
-            onClick={() => navigate("/login")}
+            onClick={() => {
+              logout();
+              navigate("/login");
+            }}
             className="text-xs text-neutral-500 hover:text-neutral-900 font-medium"
           >
             Sign out
@@ -88,77 +56,72 @@ export function CandidateDashboardPage() {
             <p className="text-xs text-neutral-500">Manage and track active support conversations</p>
           </div>
           <button
-            onClick={() => setIsCreating(!isCreating)}
-            className="px-3 py-1.5 text-xs font-medium bg-neutral-900 text-white rounded hover:bg-neutral-800 transition-colors"
+            onClick={handleCreateTicket}
+            disabled={isLoading}
+            className="px-3 py-1.5 text-xs font-medium bg-neutral-900 text-white rounded hover:bg-neutral-800 transition-colors disabled:opacity-50"
           >
-            {isCreating ? "Cancel" : "New Ticket"}
+            {isLoading ? "Creating..." : "New Ticket"}
           </button>
         </div>
 
-        {/* Inline Create Ticket Form */}
-        {isCreating && (
-          <form onSubmit={handleCreate} className="p-4 bg-neutral-50 border border-neutral-200 rounded-md space-y-3">
-            <h2 className="text-xs font-semibold text-neutral-900">Describe the issue</h2>
-            <input
-              type="text"
-              value={topic}
-              onChange={(e) => setTopic(e.target.value)}
-              placeholder="e.g., Cannot submit code solution on step 2"
-              required
-              className="w-full h-9 px-3 text-xs bg-white border border-neutral-200 rounded focus:outline-none focus:border-neutral-900 text-neutral-900"
-            />
-            <div className="flex justify-end space-x-2">
-              <button
-                type="button"
-                onClick={() => setIsCreating(false)}
-                className="px-3 py-1 text-xs text-neutral-500 hover:text-neutral-900"
-              >
-                Cancel
-              </button>
-              <button
-                type="submit"
-                className="px-3 py-1 text-xs font-medium bg-neutral-900 text-white rounded hover:bg-neutral-800"
-              >
-                Create
-              </button>
-            </div>
-          </form>
+        {error && (
+          <div className="p-3 text-xs bg-neutral-100 border border-neutral-300 text-neutral-800 rounded-md">
+            {error}
+          </div>
         )}
 
         {/* Clean Ticket List */}
-        <div className="divide-y divide-neutral-200 border border-neutral-200 rounded-md">
-          {conversations.map((c) => (
-            <div
-              key={c.id}
-              onClick={() => navigate(`/candidate/conversation/${c.id}`)}
-              className="p-4 hover:bg-neutral-50 cursor-pointer flex items-center justify-between transition-colors"
+        {conversations.length === 0 ? (
+          <div className="p-8 text-center border border-neutral-200 border-dashed rounded-md space-y-2">
+            <p className="text-xs text-neutral-500">No support tickets created yet.</p>
+            <button
+              onClick={handleCreateTicket}
+              className="text-xs font-semibold text-neutral-900 hover:underline"
             >
-              <div className="space-y-1">
-                <div className="flex items-center space-x-2">
-                  <span className="text-[11px] font-mono text-neutral-400">{c.id}</span>
-                  <span
-                    className={`text-[10px] font-medium px-1.5 py-0.5 rounded ${
-                      c.status === "IN_PROGRESS"
-                        ? "bg-neutral-900 text-white"
-                        : c.status === "OPEN"
-                        ? "bg-neutral-100 border border-neutral-300 text-neutral-700"
-                        : "bg-neutral-100 text-neutral-400"
-                    }`}
-                  >
-                    {c.status}
-                  </span>
-                  <span className="text-[11px] text-neutral-400">• {c.updatedAt}</span>
+              Create your first support conversation →
+            </button>
+          </div>
+        ) : (
+          <div className="divide-y divide-neutral-200 border border-neutral-200 rounded-md">
+            {conversations.map((c) => (
+              <div
+                key={c.id}
+                onClick={() => navigate(`/candidate/conversation/${c.id}`)}
+                className="p-4 hover:bg-neutral-50 cursor-pointer flex items-center justify-between transition-colors"
+              >
+                <div className="space-y-1">
+                  <div className="flex items-center space-x-2">
+                    <span className="text-[11px] font-mono text-neutral-400">{c.id}</span>
+                    <span
+                      className={`text-[10px] font-medium px-1.5 py-0.5 rounded ${
+                        c.status === "IN_PROGRESS"
+                          ? "bg-neutral-900 text-white"
+                          : c.status === "OPEN"
+                          ? "bg-neutral-100 border border-neutral-300 text-neutral-700"
+                          : "bg-neutral-100 text-neutral-400"
+                      }`}
+                    >
+                      {c.status}
+                    </span>
+                    <span className="text-[11px] text-neutral-400">
+                      • {new Date(c.createdAt).toLocaleDateString()}
+                    </span>
+                  </div>
+                  <h3 className="text-xs font-semibold text-neutral-900">
+                    Support Ticket #{c.id.slice(0, 8)}
+                  </h3>
+                  <p className="text-[11px] text-neutral-500">
+                    Assigned Agent: {c.agent?.name || "Unassigned"}
+                  </p>
                 </div>
-                <h3 className="text-xs font-semibold text-neutral-900">{c.topic}</h3>
-                <p className="text-[11px] text-neutral-500">Agent: {c.agentName}</p>
-              </div>
 
-              <span className="text-xs font-medium text-neutral-900 hover:underline">
-                View →
-              </span>
-            </div>
-          ))}
-        </div>
+                <span className="text-xs font-medium text-neutral-900 hover:underline">
+                  Open Chat →
+                </span>
+              </div>
+            ))}
+          </div>
+        )}
       </main>
     </div>
   );
